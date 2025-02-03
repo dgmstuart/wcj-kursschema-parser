@@ -22,3 +22,12 @@ courses.each do |course_id, course|
 
   puts "#{course_id.ljust(10)} - #{week_string(weeks).ljust(26)} - #{weekend_string(weekends)}"
 end
+
+puts "\n---------------------------\n\n"
+
+courses.each do |course_id, course|
+  weeks = course.weeknight_dates
+  weekends = course.weekend_dates
+
+  puts "#{course_id.ljust(10)} - #{week_string(weeks).ljust(60)} - #{weekend_string(weekends)}"
+end
