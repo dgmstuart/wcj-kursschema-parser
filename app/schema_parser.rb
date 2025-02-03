@@ -51,7 +51,13 @@ class SchemaParser
 
   def filtered_data(data:, column_numbers:, string:)
     data.select do |row|
-      row.fields[column_numbers].compact.any? { |value| value.include?(string) }
+      row.fields[column_numbers].compact.any? do |value|
+        if string == "A"
+          value == string
+        else
+          value.include?(string)
+        end
+      end
     end
   end
 

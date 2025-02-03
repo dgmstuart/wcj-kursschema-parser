@@ -7,6 +7,8 @@ file_path = "spec/fixtures/Schema kurser HT24-VT25 - Stora salen 24_25.csv"
 courses = SchemaParser.new.parse(file_path)
 
 def week_string(weeks)
+  return "(no weeknights)" if weeks.empty?
+
   "weeks #{weeks.join(", ")}"
 end
 
