@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "./app/schema_parser/date_parser"
 require "CSV"
 
 class SchemaParser
@@ -8,6 +9,8 @@ class SchemaParser
 
   WEEKDAY_COLUMN_NUMBERS = (1...16)
   WEEKEND_COLUMN_NUMBERS = (16...22)
+
+  YEAR = 2025 # TODO - parameterise or fetch from CSV
 
   def parse(file_path)
 
@@ -62,10 +65,16 @@ class SchemaParser
   end
 
   class Course
-    def initialize(course_id:, week_data:, weekend_data:)
+    def initialize(
+      course_id:,
+      week_data:,
+      weekend_data:,
+      date_parser: SchemaParser::DateParser.new
+    )
       @course_id = course_id
       @week_data = week_data
       @weekend_data = weekend_data
+      @date_parser = date_parser
     end
 
     def weeknight_weeks
@@ -94,7 +103,7 @@ class SchemaParser
 
           group = i / 3
           date_index = group * 3
-          weekend_fields[date_index].strip
+          @date_parser.parse(weekend_fields[date_index], year: YEAR)
         end
       end.flatten
     end

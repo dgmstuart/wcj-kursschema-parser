@@ -28,8 +28,15 @@ end
 puts "\n---------------------------\n\n"
 
 courses.each do |course_id, course|
-  weeks = course.weeknight_dates
-  weekends = course.weekend_dates
+  dates = (course.weeknight_dates + course.weekend_dates).sort
 
-  puts "#{course_id.ljust(10)} - #{week_string(weeks).ljust(60)} - #{weekend_string(weekends)}"
+  puts course_id
+
+  if dates.any?
+    dates.each { |date| puts date.strftime("%A %-d %B %Y")}
+  else
+    puts "(no dates)"
+  end
+
+  puts "\n"
 end

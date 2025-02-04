@@ -77,7 +77,8 @@ RSpec.describe SchemaParser do
 
       result = parser.parse(ht24_vt25_file_path)
 
-      expect(result.fetch("GK 1").weeknight_dates).to eq(["20 jan.", "27 jan.", "03 feb.", "10 feb.", "17 feb."])
+      dates = ["2025-01-20", "2025-01-27", "2025-02-03", "2025-02-10", "2025-02-17"].map { Date.parse(_1) }
+      expect(result.fetch("GK 1").weeknight_dates).to eq(dates)
     end
 
     it "outputs the week numbers of GK2 weeknight classes" do
@@ -85,7 +86,8 @@ RSpec.describe SchemaParser do
 
       result = parser.parse(ht24_vt25_file_path)
 
-      expect(result.fetch("GK 2").weeknight_dates).to eq(["24 feb.", "03 mars", "10 mars", "17 mars", "24 mars"])
+      dates = ["2025-02-24", "2025-03-03", "2025-03-10", "2025-03-17", "2025-03-24"].map { Date.parse(_1) }
+      expect(result.fetch("GK 2").weeknight_dates).to eq(dates)
     end
 
     it "outputs the week numbers of M2 weeknight classes" do
@@ -93,7 +95,8 @@ RSpec.describe SchemaParser do
 
       result = parser.parse(ht24_vt25_file_path)
 
-      expect(result.fetch("M 2").weeknight_dates).to eq(["19 feb.", "26 feb.", "05 mars", "12 mars", "19 mars"])
+      dates = ["2025-02-19", "2025-02-26", "2025-03-05", "2025-03-12", "2025-03-19"].map { Date.parse(_1) }
+      expect(result.fetch("M 2").weeknight_dates).to eq(dates)
     end
 
     it "outputs the week numbers of A weeknight classes" do
@@ -111,7 +114,7 @@ RSpec.describe SchemaParser do
 
       result = parser.parse(ht24_vt25_file_path)
 
-      expect(result.fetch("GK 1").weekend_dates).to eq(["25 jan.", "26 jan."])
+      expect(result.fetch("GK 1").weekend_dates).to eq(["2025-01-25", "2025-01-26"].map { Date.parse(_1) })
     end
 
     it "outputs the week numbers of GK2 weekend classes" do
@@ -119,7 +122,7 @@ RSpec.describe SchemaParser do
 
       result = parser.parse(ht24_vt25_file_path)
 
-      expect(result.fetch("GK 2").weekend_dates).to eq(["22 feb.", "23 feb."])
+      expect(result.fetch("GK 2").weekend_dates).to eq(["2025-02-22", "2025-02-23"].map { Date.parse(_1) })
     end
 
     it "outputs the week numbers of M2 weekend classes" do
