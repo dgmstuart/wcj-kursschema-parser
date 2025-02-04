@@ -21,9 +21,7 @@ class SchemaParser
     # NOTE: not always accurate to assume overlap with Spring term rows - sometimes course list overflows this.
     spring_course_ids = course_ids(spring_term_rows)
 
-    spring_course_ids.each_with_object({}) do |course_id, hash|
-      hash[course_id] = course(data: spring_term_rows, course_id:)
-    end
+    courses(course_ids: spring_course_ids, period_data: spring_term_rows)
   end
 
   private
@@ -40,40 +38,20 @@ class SchemaParser
     string.gsub(/^([^0-9]*[0-9]).*/, '\1')
   end
 
-  def course(data:, course_id:)
-    week_data, weekend_data = course_data(data:, course_id:)
-    Course.new(course_id:, week_data:, weekend_data:)
-  end
-
-  def course_data(data:, course_id:)
-    [
-      filtered_data(data:, column_numbers: WEEKDAY_COLUMN_NUMBERS, string: course_id),
-      filtered_data(data:, column_numbers: WEEKEND_COLUMN_NUMBERS, string: course_id)
-    ]
-  end
-
-  def filtered_data(data:, column_numbers:, string:)
-    data.select do |row|
-      row.fields[column_numbers].compact.any? do |value|
-        if string == "A"
-          value == string
-        else
-          value.include?(string)
-        end
-      end
+  def courses(course_ids:, period_data:)
+    course_ids.each_with_object({}) do |course_id, hash|
+      hash[course_id] = Course.new(period_data:, course_id:)
     end
   end
 
   class Course
     def initialize(
       course_id:,
-      week_data:,
-      weekend_data:,
+      period_data:,
       date_parser: SchemaParser::DateParser.new
     )
       @course_id = course_id
-      @week_data = week_data
-      @weekend_data = weekend_data
+      @period_data = period_data
       @date_parser = date_parser
     end
 
@@ -86,26 +64,40 @@ class SchemaParser
     end
 
     def weeknight_dates
-      dates(data: @week_data, column_numbers: WEEKDAY_COLUMN_NUMBERS)
+      dates(column_numbers: WEEKDAY_COLUMN_NUMBERS)
     end
 
     def weekend_dates
-      dates(data: @weekend_data, column_numbers: WEEKEND_COLUMN_NUMBERS)
+      dates(column_numbers: WEEKEND_COLUMN_NUMBERS)
     end
 
     private
 
-    def dates(data:, column_numbers:)
-      data.map do |row|
-        weekend_fields = row.fields[column_numbers]
-        weekend_fields.each_with_index.filter_map do |value, i|
-          next unless value && value.include?(@course_id)
-
-          group = i / 3
-          date_index = group * 3
-          @date_parser.parse(weekend_fields[date_index], year: YEAR)
-        end
+    def dates(column_numbers:)
+      @period_data.map do |row|
+        fields = row.fields[column_numbers]
+        dates_from_fields(fields)
       end.flatten
+    end
+
+    def dates_from_fields(fields)
+      fields.each_with_index.filter_map do |value, i|
+        next unless matches_course_id?(value)
+
+        group = i / 3
+        date_index = group * 3
+        @date_parser.parse(fields[date_index], year: YEAR)
+      end
+    end
+
+    def matches_course_id?(value)
+      return unless value
+
+      if @course_id == "A"
+        value == @course_id
+      else
+        value.include?(@course_id)
+      end
     end
   end
 end
