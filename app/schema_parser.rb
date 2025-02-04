@@ -78,11 +78,11 @@ class SchemaParser
     end
 
     def weeknight_weeks
-      week_numbers(@week_data)
+      weeknight_dates.map(&:cweek)
     end
 
     def weekend_weeks
-      week_numbers(@weekend_data)
+      weekend_dates.map(&:cweek).uniq
     end
 
     def weeknight_dates
@@ -106,10 +106,6 @@ class SchemaParser
           @date_parser.parse(weekend_fields[date_index], year: YEAR)
         end
       end.flatten
-    end
-
-    def week_numbers(data)
-      data.map { |row| Integer(row["Vecka"]) }
     end
   end
 end
