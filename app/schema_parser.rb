@@ -12,23 +12,27 @@ class SchemaParser
   WEEKDAY_COLUMN_NUMBERS = (1...16)
   WEEKEND_COLUMN_NUMBERS = (16...22)
 
-  YEAR = 2025 # TODO - parameterise or fetch from CSV
-
   def parse(file_path)
 
     data = CSV.foreach(file_path, headers: true)
     week_rows = data.reject { |row| row[WEEK_HEADER].nil? }
+
+    spring_year = terms(data).last.year
     spring_term_rows = week_rows.reject { |row| Integer(row[WEEK_HEADER]) > 25 }
 
     # NOTE: not always accurate to assume overlap with Spring term rows - sometimes course list overflows this.
     spring_course_ids = course_ids(spring_term_rows)
 
-    courses(course_ids: spring_course_ids, period_data: spring_term_rows)
+    courses(course_ids: spring_course_ids, period_data: spring_term_rows, year: spring_year)
   end
 
   private
 
-  Term = Data.define(:id, :row_index)
+  Term = Data.define(:id, :row_index) do
+    def year
+      Integer("20" + id[/\d+/])
+    end
+  end
 
   def terms(data)
     header_rows(data).map do |row, row_index|
@@ -64,9 +68,9 @@ class SchemaParser
     string.gsub(/^([^0-9]*[0-9]).*/, '\1')
   end
 
-  def courses(course_ids:, period_data:)
+  def courses(course_ids:, period_data:, year:)
     course_ids.each_with_object({}) do |course_id, hash|
-      hash[course_id] = Course.new(period_data:, course_id:)
+      hash[course_id] = Course.new(period_data:, course_id:, year:)
     end
   end
 
@@ -74,10 +78,12 @@ class SchemaParser
     def initialize(
       course_id:,
       period_data:,
+      year:,
       date_parser: SchemaParser::DateParser.new
     )
       @course_id = course_id
       @period_data = period_data
+      @year = year
       @date_parser = date_parser
     end
 
@@ -112,7 +118,7 @@ class SchemaParser
 
         group = i / 3
         date_index = group * 3
-        @date_parser.parse(fields[date_index], year: YEAR)
+        @date_parser.parse(fields[date_index], year: @year)
       end
     end
 
