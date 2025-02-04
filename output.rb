@@ -4,7 +4,7 @@ require "./app/schema_parser"
 
 file_path = "spec/fixtures/Schema kurser HT24-VT25 - Stora salen 24_25.csv"
 
-courses = SchemaParser.new.parse(file_path)
+terms = SchemaParser.new.parse(file_path)
 
 def week_string(weeks)
   return "(no weeknights)" if weeks.empty?
@@ -18,25 +18,50 @@ def weekend_string(weekends)
   "weekend #{weekends.join(", ")}"
 end
 
-courses.each do |course_id, course|
-  weeks = course.weeknight_weeks
-  weekends = course.weekend_weeks
+def print_course_weeks(courses)
+  courses.each do |course_id, course|
+    weeks = course.weeknight_weeks
+    weekends = course.weekend_weeks
 
-  puts "#{course_id.ljust(10)} - #{week_string(weeks).ljust(26)} - #{weekend_string(weekends)}"
+    puts "#{course_id.ljust(10)} - #{week_string(weeks).ljust(26)} - #{weekend_string(weekends)}"
+  end
 end
+
+def print_course_dates(courses)
+  courses.each do |course_id, course|
+    dates = (course.weeknight_dates + course.weekend_dates).sort
+
+    puts course_id
+
+    if dates.any?
+      dates.each { |date| puts date.strftime("%A %-d %B %Y")}
+    else
+      puts "(no dates)"
+    end
+
+    puts "\n"
+  end
+end
+
+puts terms.autumn.id
+puts "---\n"
+print_course_weeks(terms.autumn.courses)
 
 puts "\n---------------------------\n\n"
 
-courses.each do |course_id, course|
-  dates = (course.weeknight_dates + course.weekend_dates).sort
+puts terms.autumn.id
+puts "---\n"
+print_course_dates(terms.autumn.courses)
 
-  puts course_id
+puts "\n---------------------------\n\n"
 
-  if dates.any?
-    dates.each { |date| puts date.strftime("%A %-d %B %Y")}
-  else
-    puts "(no dates)"
-  end
+puts terms.spring.id
+puts "---\n"
+print_course_weeks(terms.spring.courses)
 
-  puts "\n"
-end
+puts "\n---------------------------\n\n"
+
+puts terms.spring.id
+puts "---\n"
+print_course_dates(terms.spring.courses)
+

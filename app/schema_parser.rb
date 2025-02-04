@@ -7,7 +7,13 @@ class SchemaParser
   WEEK_HEADER = "Vecka"
   COURSES_HEADER = "Kurser       Lindy /Jazz"
 
-  NON_COURSE_STRINGS = ["Önskekurser", "Öppet hus", "Registreringen stänger", "Första kursdag"]
+  NON_COURSE_STRINGS = [
+    "Önskekurser",
+    "Önske-kurser",
+    "Öppet hus",
+    "Registreringen stänger",
+    "Första kursdag"
+  ]
 
   WEEKDAY_COLUMN_NUMBERS = (1...16)
   WEEKEND_COLUMN_NUMBERS = (16...22)
@@ -15,75 +21,119 @@ class SchemaParser
   def parse(file_path)
     data = CSV.read(file_path, headers: true)
 
-    _autumn_term, spring_term = TermsBuilder.new.build(data)
-
-    term_courses(data:, term: spring_term)
+    sections = TermSections.new(data)
+    builder = TermBuilder.new
+    Terms.new(
+      autumn: builder.build(data:, term_section: sections.autumn),
+      spring: builder.build(data:, term_section: sections.spring),
+    )
   end
 
   private
 
-  def term_courses(data:, term:)
-    term_rows = data[term.row_numbers]
-    term_schedule_rows = term_rows.reject { |row| row[WEEK_HEADER].nil? }
-    course_ids = course_ids(term_rows)
+  Terms = Data.define(:autumn, :spring)
+  Term = Data.define(:id, :year, :courses)
 
-    courses(course_ids:, schedule_data: term_schedule_rows, year: term.year)
-  end
-
-  class AutumnTerm
-    def initialize(autumn_term:, spring_term1:)
-      @autumn_term = autumn_term
-      @spring_term1 = spring_term1
-    end
-
-    def year
-      @autumn_term.year
-    end
-
-    def row_numbers
-      first = @autumn_term.row_index + 1
-      last = @spring_term1.row_index - 1
-      (first..last)
-    end
-  end
-
-  class SpringTerm
-    def initialize(spring_term1:)
-      @spring_term1 = spring_term1
-    end
-
-    def year
-      @spring_term1.year
-    end
-
-    def row_numbers
-      first = @spring_term1.row_index + 1
-      (first..)
-    end
-  end
-
-  class TermsBuilder
-    TERM_ID_REGEX = /(HT|VT)\d+/
-
-    def build(data)
-      autumn_term, spring_term1, _spring_term2 = build_info(data)
-      [
-        AutumnTerm.new(autumn_term:, spring_term1:),
-        SpringTerm.new(spring_term1:)
-      ]
+  class TermBuilder
+    def build(data:, term_section:)
+      Term.new(
+        id: term_section.id,
+        year: term_section.year,
+        courses: term_courses(data:, term_section:)
+      )
     end
 
     private
 
-    def build_info(data)
+    def term_courses(data:, term_section:)
+      term_rows = data[term_section.row_numbers]
+      term_schedule_rows = term_rows.reject { |row| row[WEEK_HEADER].nil? }
+      course_ids = CourseIdsParser.new.course_ids(term_rows)
+
+      courses(course_ids:, schedule_data: term_schedule_rows, year: term_section.year)
+    end
+
+    def courses(course_ids:, schedule_data:, year:)
+      course_ids.each_with_object({}) do |course_id, hash|
+        hash[course_id] = Course.new(schedule_data:, course_id:, year:)
+      end
+    end
+  end
+
+  class CourseIdsParser
+    def course_ids(data)
+      data
+        .reject { |row| not_a_course?(row[COURSES_HEADER]) }
+        .map { |row| row[COURSES_HEADER] }
+        .map { |course_id| remove_all_after_first_digit(course_id) }
+    end
+
+    private
+
+    def not_a_course?(value)
+      return true if value.nil?
+
+      NON_COURSE_STRINGS.any?{ |string| value.include?(string) }
+    end
+
+    def remove_all_after_first_digit(string)
+      string.gsub(/^([^0-9]*[0-9]).*/, '\1')
+    end
+  end
+
+  class TermSections
+    def initialize(data)
+      @term_headers = TermHeadersBuilder.new.build(data)
+      @autumn_term_header, @spring_term1_header, _spring_term2_header = @term_headers
+    end
+
+    def autumn
+      build_section(term_header: @autumn_term_header, row_number_calculator: AutumnTermRowNumbersCalculator.new)
+    end
+
+    def spring
+      build_section(term_header: @spring_term1_header, row_number_calculator: SpringTermRowNumbersCalculator.new)
+    end
+
+    private
+
+    def build_section(term_header:, row_number_calculator:)
+      TermSection.new(
+        id: term_header.id,
+        row_numbers: row_number_calculator.row_numbers(*@term_headers)
+      )
+    end
+  end
+
+  class AutumnTermRowNumbersCalculator
+    def row_numbers(autumn_term, spring_term1, spring_term_2)
+      first = autumn_term.row_index + 1
+      last = spring_term1.row_index - 1
+      (first..last)
+    end
+  end
+
+  class SpringTermRowNumbersCalculator
+    def row_numbers(autumn_term, spring_term1, spring_term_2)
+      first = spring_term1.row_index + 1
+      (first..)
+    end
+  end
+
+  class TermHeadersBuilder
+    TERM_ID_REGEX = /(HT|VT)\d+/
+
+    def build(data)
       header_rows(data).map do |row, row_index|
         text = row.fields.find do |field|
           header_field?(field:)
         end
 
-        TermInfo.new(id: text[TERM_ID_REGEX], row_index:)
+        TermHeader.new(id: text[TERM_ID_REGEX], row_index:)
       end
     end
+
+    private
 
     def header_rows(data)
       data.each_with_index.select do |row, index|
@@ -98,34 +148,13 @@ class SchemaParser
     end
   end
 
-  TermInfo = Data.define(:id, :row_index) do
+  TermSection = Data.define(:id, :row_numbers) do
     def year
       Integer("20" + id[/\d+/])
     end
   end
 
-  def course_ids(data)
-    data
-      .reject { |row| not_a_course?(row[COURSES_HEADER]) }
-      .map { |row| row[COURSES_HEADER] }
-      .map { |course_id| remove_all_after_first_digit(course_id) }
-  end
-
-  def not_a_course?(value)
-    return true if value.nil?
-
-    NON_COURSE_STRINGS.any?{ |string| value.include?(string) }
-  end
-
-  def remove_all_after_first_digit(string)
-    string.gsub(/^([^0-9]*[0-9]).*/, '\1')
-  end
-
-  def courses(course_ids:, schedule_data:, year:)
-    course_ids.each_with_object({}) do |course_id, hash|
-      hash[course_id] = Course.new(schedule_data:, course_id:, year:)
-    end
-  end
+  TermHeader = Data.define(:id, :row_index)
 
   class Course
     def initialize(
