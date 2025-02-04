@@ -7,6 +7,8 @@ class SchemaParser
   WEEK_HEADER = "Vecka"
   COURSES_HEADER = "Kurser       Lindy /Jazz"
 
+  TERM_ID_REGEX = /(HT|VT)\d+/
+
   WEEKDAY_COLUMN_NUMBERS = (1...16)
   WEEKEND_COLUMN_NUMBERS = (16...22)
 
@@ -25,6 +27,30 @@ class SchemaParser
   end
 
   private
+
+  Term = Data.define(:id, :row_index)
+
+  def terms(data)
+    header_rows(data).map do |row, row_index|
+      text = row.fields.find do |field|
+        header_field?(field:)
+      end
+
+      Term.new(id: text[TERM_ID_REGEX], row_index:)
+    end
+  end
+
+  def header_rows(data)
+    data.each_with_index.select do |row, index|
+      row.fields.any? do |field|
+        header_field?(field:)
+      end
+    end
+  end
+
+  def header_field?(field:)
+    field && field.match?(/Stora.+#{TERM_ID_REGEX}/)
+  end
 
   def course_ids(data)
     data
